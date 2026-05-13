@@ -37,7 +37,7 @@
 %
 % and set <dim> to something 5cm or larger.
 
-\title{Instructions for *ACL Proceedings}
+\title{OR-Bench: Evaluating Optimizers for RLVR}
 
 % Author information can be set in various styles:
 % For several authors from the same institution:
@@ -114,13 +114,21 @@ These instructions should be used both for papers submitted for review and for f
 
 \section{Introduction}
 
-These instructions are for authors submitting papers to *ACL conferences using \LaTeX. They are not self-contained. All authors must follow the general instructions for *ACL proceedings,\footnote{\url{http://acl-org.github.io/ACLPUB/formatting.html}} and this document contains additional instructions for the \LaTeX{} style files.
+Optimizers are a central component of neural network training. They translate the noisy, high-dimensional gradient signal produced by backpropagation into the actual parameter updates that determine whether a model converges, how fast it converges, and which solution it ultimately finds. As model scale has grown to hundreds of billions of parameters, the choice of optimizer has become increasingly consequential to the cost, stability, and final quality of large language models (LLMs).
 
-The templates include the \LaTeX{} source of this document (\texttt{acl\_latex.tex}),
-the \LaTeX{} style file used to format it (\texttt{acl.sty}),
-an ACL bibliography style (\texttt{acl\_natbib.bst}),
-an example bibliography (\texttt{custom.bib}),
-and the bibliography for the ACL Anthology (\texttt{anthology.bib}).
+A long line of work has produced a rich landscape of optimizers. Stochastic Gradient Descent (SGD) and its momentum variants \citep{robbins1951sgd, polyak1964momentum} offer simplicity and strong generalization but struggle with the heterogeneous gradient scales encountered in deep networks. Adaptive methods such as Adam and AdamW \citep{kingma2015adam, loshchilov2019adamw} address this by maintaining per-parameter learning rates, and have become the de facto standard for LLM pretraining. Lion \citep{chen2023lion} simplifies adaptive optimization by using sign-based updates with a single momentum buffer, achieving competitive results with substantially less memory. Shampoo \citep{gupta2018shampoo} and other matrix-preconditioned methods exploit second-order curvature information through Kronecker-factored statistics. Most recently, Muon \citep{jordan2024muon} applies a Newton--Schulz orthogonalization step to momentum matrices, producing well-conditioned updates that have demonstrated strong performance in pretraining frontier models. Each of these algorithms reflects assumptions about the loss surface, gradient noise, and data distribution that are characteristic of large-scale supervised pretraining.
+
+In parallel, Reinforcement Learning with Verifiable Rewards (RLVR) has emerged as a critical pathway for pushing the capability frontier of LLMs. By optimizing models against verifiable signals using algorithms such as GRPO \citep{shao2024grpo}, RLVR has unlocked test-time scaling on reasoning-intensive tasks, producing the dramatic gains observed in recent reasoning models. Crucially, mounting evidence suggests that RLVR is fundamentally different from the teacher-forcing paradigm used in supervised fine-tuning (SFT) and pretraining. \citet{rl_subnetworks} show that RLVR finetunes only a strikingly small subnetwork of the model, leaving the vast majority of parameters essentially untouched. \citet{path_not_taken} demonstrate that RLVR provably learns \emph{off} the principal directions in weight space, achieving its gains via minimal spectral drift, reduced principal-subspace rotation, and off-principal update alignment; in contrast, SFT targets principal weights, distorts the spectrum, and even lags behind RLVR. \citet{reasoning_vectors} report that the capability acquired through RLVR is largely low-rank: it can be captured by a single ``reasoning vector'' that is transferable across tasks via simple arithmetic, and even linearly extrapolated to obtain stronger performance. Complementing these structural observations, \citet{do_we_need_adam} argue that the RLVR loss landscape is markedly flatter than that of pretraining, and show that simpler optimizers such as SGD can match or surpass Adam in this regime at a fraction of the memory and compute cost.
+
+Taken together, these findings point to a single, underappreciated conclusion. The optimizer assumptions baked into modern LLM training---heavy adaptivity, large momentum and second-moment buffers, careful preconditioning, and aggressive stabilization tricks---were forged for the pretraining regime, with its rugged loss landscape, noisy and heterogeneous data, and need for robustness across trillions of tokens. Many of these premises simply do not hold under RLVR, where updates are sparse, low-rank, off-principal, and traverse a comparatively flat loss surface. This raises the central research question of our work:
+
+\begin{quote}
+\emph{What kind of optimizer is best suited for RLVR?}
+\end{quote}
+
+To answer this question, we introduce \textbf{OR-Bench}, a fair and reproducible benchmark for evaluating mainstream optimizers in the RLVR setting. To ensure that our conclusions are not artifacts of a particular architecture, scale, or pretraining recipe, OR-Bench is designed with three axes of coverage. First, on the architectural axis, we evaluate both dense and Mixture-of-Experts (MoE) backbones with parameter counts ranging from 8B to 16B. Second, on the pretraining-optimizer axis, we include base models pretrained with both Adam and Muon, allowing us to disentangle the effects of the pretraining optimizer from those of the RLVR optimizer. Third, on the task axis, we focus on the two most universal and rigorously verifiable RLVR scenarios---mathematical reasoning and code generation---and evaluate each run on a comprehensive suite of downstream benchmarks. To eliminate confounds from unstable starting points, every model in OR-Bench is initialized from a unified cold-start SFT stage on the same dataset, ensuring that all optimizers begin RLVR from a comparable capability profile. We further commit to full transparency: all training configurations, intermediate checkpoints, and evaluation protocols are released to support absolute reproducibility.
+
+% TODO: conclusion paragraph summarizing main findings and contributions, to be added once experiments are complete.
 
 \section{Engines}
 
